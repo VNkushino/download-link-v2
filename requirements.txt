@@ -1,0 +1,4 @@
+Flask>=3.0,<4.0
+flask-cors>=4.0,<6.0
+yt-dlp
+gunicorn>=21.2

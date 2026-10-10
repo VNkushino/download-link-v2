@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#1877f2">
+  <title>Video Downloader</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 16px; }
+    .box { background: white; padding: 28px; border-radius: 14px; box-shadow: 0 4px 18px rgba(0,0,0,.10); width: 100%; max-width: 460px; text-align: center; }
+    h2 { color: #1877f2; margin: 0 0 10px; }
+    .sub { color: #606770; font-size: 14px; line-height: 1.5; margin-bottom: 20px; }
+    input { width: 100%; padding: 13px; border: 1px solid #ccd0d5; border-radius: 8px; margin-bottom: 12px; font-size: 15px; }
+    button { width: 100%; padding: 13px; background: #1877f2; color: white; border: 0; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; }
+    button:disabled { opacity: .65; cursor: wait; }
+    #result { margin-top: 18px; line-height: 1.5; overflow-wrap: anywhere; }
+    .error { color: #c62828; }
+    .success { color: #187a2f; }
+    .hint { color: #606770; font-size: 12px; margin-top: 18px; }
+  </style>
+</head>
+<body>
+  <main class="box">
+    <h2>Video Downloader</h2>
+    <div class="sub">YouTube · TikTok · Instagram · Facebook · X</div>
+    <form id="downloadForm">
+      <input type="url" id="videoUrl" placeholder="Dán link video vào đây..." required autocomplete="url">
+      <button id="submitBtn" type="submit">Tải video</button>
+    </form>
+    <div id="result" role="status" aria-live="polite"></div>
+    <div class="hint">Chỉ tải nội dung bạn có quyền lưu. Một số video riêng tư hoặc yêu cầu đăng nhập có thể không tải được.</div>
+  </main>
+  <script>
+    const API_URL = 'https://download-fb.onrender.com/get-download-link';
+    const form = document.getElementById('downloadForm');
+    const input = document.getElementById('videoUrl');
+    const button = document.getElementById('submitBtn');
+    const result = document.getElementById('result');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const url = input.value.trim();
+      if (!url) {
+        result.innerHTML = '<p class="error">Vui lòng dán link video.</p>';
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = 'Đang tải video...';
+      result.textContent = 'Đang xử lý. Video dài có thể mất vài phút.';
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok || contentType.includes('application/json')) {
+          let message = 'Không tải được video.';
+          try {
+            const data = await response.json();
+            message = data.message || message;
+          } catch (_) {}
+          throw new Error(message);
+        }
+
+        const blob = await response.blob();
+        const disposition = response.headers.get('content-disposition') || '';
+        let filename = 'video.mp4';
+        const match = disposition.match(/filename\*=UTF-8''([^;]+)|filename="?([^";]+)"?/i);
+        if (match) {
+          try { filename = decodeURIComponent(match[1] || match[2]); }
+          catch (_) { filename = match[2] || filename; }
+        }
+
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+        result.innerHTML = '<p class="success">Đã gửi file tải xuống. Kiểm tra thư mục Tải xuống của bạn.</p>';
+      } catch (error) {
+        result.innerHTML = '<p class="error"></p>';
+        result.firstChild.textContent = error.message || 'Không thể kết nối đến máy chủ Render.';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Tải video';
+      }
+    });
+  </script>
+</body>
+</html>
